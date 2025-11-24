@@ -1,0 +1,514 @@
+-- Venom Hub - Painel Admin
+-- Desenvolvido por: Ryuk
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local Workspace = game:GetService("Workspace")
+
+-- ===== SISTEMA DE WHITELIST =====
+local function getCurrentTimestamp()
+    return os.time()
+end
+
+local function parseDateTime(dateString)
+    local day, month, year, hour, minute = dateString:match("(%d+)/(%d+)/(%d+) (%d+):(%d+)")
+    if day and month and year and hour and minute then
+        return os.time({
+            day = tonumber(day),
+            month = tonumber(month),
+            year = tonumber(year),
+            hour = tonumber(hour),
+            min = tonumber(minute),
+            sec = 0
+        })
+    end
+    return nil
+end
+
+-- Sistema de Whitelist com Expiração
+local WhitelistData = {
+    -- Donos (sem expiração)
+    ["JellyIceZero201673"] = {type = "Dono", expires = nil},
+    ["TrollWareCyber"] = {type = "Staff", expires = nil},
+    ["pedriinn222"] = {type = "Sub dono", expires = nil},
+    ["LZK_MATHEUSSS"] = {type = "Staff", expires = nil},
+    ["gamer_dirvedidap"] = {type = "Modde", expires = nil},
+    ["slingshotmate8h"] = {type = "Staff", expires = nil},
+    ["torajuiorsudud7"] = {type = "Staff", expires = nil},
+    [kkkk"] = {type = "Suporte", expires = nil},
+    ["miuuq_333"] = {type = "Usuario Adm", expires = nil},
+
+    -- Usuários ADM com expiração
+    ["ryehd52835"] = {type = "Usuário adm", expires = parseDateTime("15/01/2026 23:59")},
+    ["guilhermesjdhqu"] = {type = "Usuário adm", expires = parseDateTime("29/11/2025 23:59")},
+    ["goku_prime41"] = {type = "Usuário adm", expires = parseDateTime("29/11/2025 23:59")},
+    ["LZK_TETEUU"] = {type = "Usuário adm", expires = parseDateTime("29/11/2025 23:59")},
+    ["caiozn7_669"] = {type = "Usuário adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["donarzissus"] = {type = "Usuário adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["vampzinkkj_1"] = {type = "Usuário adm", expires = parseDateTime("15/12/2030 23:59")},
+    ["ppyszt"] = {type = "Usuário adm", expires = parseDateTime("7/01/2026 18:30")},
+    ["pedro_roneido"] = {type = "Usuário adm", expires = parseDateTime("10/01/2030 12:00")},
+    ["pedro_roneido20"] = {type = "Usuário adm", expires = parseDateTime("10/01/2030 12:00")},
+    ["ixi362"] = {type = "Usuário adm", expires = parseDateTime("05/01/2030 15:45")},
+    ["jifhgiu"] = {type = "Usuário adm", expires = parseDateTime("25/12/2030 20:00")},
+    ["piloto158d"] = {type = "Usuário adm", expires = parseDateTime("30/12/2030 14:20")},
+    ["rafaelgms7810396"] = {type = "Usuário adm", expires = parseDateTime("25/12/2030 20:00")},
+    ["ilu1_22"] = {type = "Usuário adm", expires = parseDateTime("08/01/2030 10:30")},
+    ["xmarcelo_27262"] = {type = "Usuário adm", expires = parseDateTime("12/01/2030 16:15")},
+    ["ryansididd"] = {type = "Usuário adm", expires = parseDateTime("03/01/2030 09:00")},
+    ["redz_hub99975"] = {type = "Usuário adm", expires = parseDateTime("28/12/2030 22:45")},
+    ["teteu0902201mc"] = {type = "Usuário adm", expires = parseDateTime("15/01/2030 11:30")},
+    ["amongus23445844sad"] = {type = "Usuário adm", expires = parseDateTime("18/12/2030 19:20")},
+    ["ttyyryjuh"] = {type = "Usuário adm", expires = parseDateTime("22/12/2030 13:10")},
+    ["kevin_oliverra10"] = {type = "Usuário adm", expires = parseDateTime("07/01/2030 17:40")},
+    ["eduard0k0"] = {type = "Usuário adm", expires = parseDateTime("14/01/2030 08:50")},
+    ["gh707080s"] = {type = "Usuário adm", expires = parseDateTime("31/12/2030 23:59")},
+    ["luroblox1262"] = {type = "Usuário adm", expires = parseDateTime("06/01/2030 14:25")},
+    ["bonasamigo"] = {type = "Usuário adm", expires = parseDateTime("19/10/2030 14:30")},
+    ["manopp72"] = {type = "Usuário adm", expires = parseDateTime("25/10/2025 18:40")},
+    ["zack_89901"] = {type = "Usuário adm", expires = parseDateTime("25/10/2025 18:40")},
+    ["rackffr9"] = {type = "Usuário add", expires = parseDateTime("20/11/2025 18:40")},
+    ["oibuto7"] = {type = "Usuário add", expires = parseDateTime("31/10/2025 14:40")},
+    ["ensisbsjbrhe"] = {type = "Usuário add", expires = parseDateTime("09/10/2030 19:40")},
+    ["gui_neh1023"] = {type = "Usuário add", expires = parseDateTime("09/10/2030 19:40")},
+    ["killert_494"] = {type = "Usuário add", expires = parseDateTime("09/10/2030 19:40")},
+}
+
+local function isUserWhitelisted(username)
+    local userData = WhitelistData[username:lower()]
+    if not userData then
+        return false, "Não está na whitelist"
+    end
+    
+    if userData.expires then
+        local currentTime = getCurrentTimestamp()
+        if currentTime > userData.expires then
+            return false, "Whitelist expirada em " .. os.date("%d/%m/%Y %H:%M", userData.expires)
+        end
+    end
+    
+    return true, userData.type
+end
+
+local function verifyWhitelistOnStart()
+    local username = LocalPlayer.Name:lower()
+    local isWhitelisted, reason = isUserWhitelisted(username)
+    
+    if not isWhitelisted then
+        task.wait(2)
+        if reason:find("expirada") then
+            LocalPlayer:Kick("❌ SUA WHITELIST EXPIROU!\n\nData de expiração: " .. reason:match("expirada em (.+)"))
+        else
+            LocalPlayer:Kick("❌ VOCÊ NÃO ESTÁ NA WHITELIST!\n\nEntre em contato com o desenvolvedor.")
+        end
+        return false
+    end
+    
+    return true
+end
+
+if not verifyWhitelistOnStart() then
+    return
+end
+
+-- ===== VARIÁVEIS GLOBAIS =====
+local FROZEN_PLAYERS = {}
+local playerOriginalSpeed = {}
+local jaulas = {}
+local jailConnections = {}
+local SHADOW_USERS = {}
+local TEMP_MODS = {}
+local selectedPlayers = {}
+local playerNames = {}
+local tagsVisiveis = true
+local backroomsMonster = nil
+local monsterActive = false
+
+-- ===== SISTEMA DO MONSTRO DAS BACKROOMS =====
+local function CreateBackroomsMonster(position)
+    local monsterFolder = Instance.new("Folder")
+    monsterFolder.Name = "BackroomsMonster"
+    
+    -- Criar parte principal do monstro
+    local monsterPart = Instance.new("Part")
+    monsterPart.Name = "MonsterBody"
+    monsterPart.Size = Vector3.new(8, 12, 8)
+    monsterPart.Position = position
+    monsterPart.Anchored = true
+    monsterPart.CanCollide = true
+    monsterPart.Material = Enum.Material.SmoothPlastic
+    monsterPart.BrickColor = BrickColor.new("Really black")
+    monsterPart.Parent = monsterFolder
+    
+    -- Criar decal/textura com a imagem do monstro
+    local monsterDecal = Instance.new("Decal")
+    monsterDecal.Name = "MonsterFace"
+    monsterDecal.Texture = "rbxassetid://126754882337711"
+    monsterDecal.Face = Enum.NormalId.Front
+    monsterDecal.Parent = monsterPart
+    
+    -- Adicionar decal nas outras faces também
+    local decalBack = Instance.new("Decal")
+    decalBack.Texture = "rbxassetid://126754882337711"
+    decalBack.Face = Enum.NormalId.Back
+    decalBack.Parent = monsterPart
+    
+    local decalLeft = Instance.new("Decal")
+    decalLeft.Texture = "rbxassetid://126754882337711"
+    decalLeft.Face = Enum.NormalId.Left
+    decalLeft.Parent = monsterPart
+    
+    local decalRight = Instance.new("Decal")
+    decalRight.Texture = "rbxassetid://126754882337711"
+    decalRight.Face = Enum.NormalId.Right
+    decalRight.Parent = monsterPart
+    
+    -- Luz vermelha assustadora
+    local monsterLight = Instance.new("PointLight")
+    monsterLight.Brightness = 5
+    monsterLight.Range = 20
+    monsterLight.Color = Color3.fromRGB(255, 0, 0)
+    monsterLight.Parent = monsterPart
+    
+    -- Partículas de fumaça vermelha
+    local smokeParticles = Instance.new("ParticleEmitter")
+    smokeParticles.Texture = "rbxassetid://243664672"
+    smokeParticles.Lifetime = NumberRange.new(1, 3)
+    smokeParticles.Rate = 25
+    smokeParticles.SpreadAngle = Vector2.new(45, 45)
+    smokeParticles.Speed = NumberRange.new(2, 4)
+    smokeParticles.Color = ColorSequence.new(Color3.fromRGB(255, 0, 0))
+    smokeParticles.Transparency = NumberSequence.new(0.3, 0.8)
+    smokeParticles.Size = NumberSequence.new(1, 3)
+    smokeParticles.Parent = monsterPart
+    
+    -- Som do monstro
+    local monsterSound = Instance.new("Sound")
+    monsterSound.SoundId = "rbxassetid://138873214826309"
+    monsterSound.Volume = 1.5
+    monsterSound.Looped = true
+    monsterSound.Parent = monsterPart
+    monsterSound:Play()
+    
+    -- Efeito de pulsação na luz
+    coroutine.wrap(function()
+        while monsterPart.Parent do
+            monsterLight.Brightness = 8
+            wait(0.5)
+            monsterLight.Brightness = 3
+            wait(0.5)
+        end
+    end)()
+    
+    return monsterFolder
+end
+
+-- ===== FUNÇÃO PARA ATIVAR O MONSTRO =====
+local function ActivateMonster(player)
+    if not player or not player.Character then return end
+    
+    local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    
+    -- Criar monstro se não existir
+    if not backroomsMonster then
+        local monsterPosition = humanoidRootPart.Position + Vector3.new(25, 0, 0)
+        backroomsMonster = CreateBackroomsMonster(monsterPosition)
+        backroomsMonster.Parent = workspace
+    end
+    
+    monsterActive = true
+    
+    -- Sistema de perseguição do monstro
+    local monsterBody = backroomsMonster:FindFirstChild("MonsterBody")
+    if not monsterBody then return end
+    
+    -- Jumpscare inicial após 2 segundos
+    task.wait(2)
+    
+    -- Criar jumpscare assustador
+    local screenGui = Instance.new("ScreenGui", CoreGui)
+    screenGui.Name = "MonsterJumpscare"
+    screenGui.IgnoreGuiInset = true
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    local imageLabel = Instance.new("ImageLabel", screenGui)
+    imageLabel.Size = UDim2.new(1, 0, 1, 0)
+    imageLabel.Position = UDim2.new(0, 0, 0, 0)
+    imageLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+    imageLabel.BackgroundTransparency = 0
+    imageLabel.Image = "rbxassetid://126754882337711"
+    imageLabel.ScaleType = Enum.ScaleType.Fit
+    imageLabel.ImageTransparency = 1
+    
+    -- Som do jumpscare
+    local scareSound = Instance.new("Sound")
+    scareSound.SoundId = "rbxassetid://138873214826309"
+    scareSound.Volume = 2.5
+    scareSound.Looped = false
+    scareSound.Parent = screenGui
+    
+    -- Animação do jumpscare
+    coroutine.wrap(function()
+        imageLabel.ImageTransparency = 0
+        scareSound:Play()
+        
+        -- Efeito de pulsação
+        for i = 1, 6 do
+            imageLabel.Size = UDim2.new(1.1, 0, 1.1, 0)
+            wait(0.1)
+            imageLabel.Size = UDim2.new(1, 0, 1, 0)
+            wait(0.1)
+        end
+        
+        -- Fade out
+        for i = 1, 10 do
+            imageLabel.ImageTransparency = i / 10
+            wait(0.05)
+        end
+        
+        scareSound:Stop()
+        screenGui:Destroy()
+    end)()
+    
+    -- Mensagem de alerta
+    StarterGui:SetCore("ChatMakeSystemMessage", {
+        Text = "O MONSTRO DAS BACKROOMS TE VIU! FUJA!",
+        Color = Color3.fromRGB(255, 0, 0),
+        Font = Enum.Font.GothamBold
+    })
+    
+    -- Sistema de perseguição
+    while monsterActive and player.Character and player.Character:FindFirstChild("HumanoidRootPart") do
+        local playerPos = player.Character.HumanoidRootPart.Position
+        local monsterPos = monsterBody.Position
+        
+        -- Calcular direção para o jogador
+        local direction = (playerPos - monsterPos).Unit
+        local newPosition = monsterPos + (direction * 2.5)
+        
+        -- Atualizar posição do monstro
+        monsterBody.Position = newPosition
+        
+        -- Fazer o monstro sempre olhar para o jogador
+        monsterBody.CFrame = CFrame.new(newPosition, playerPos)
+        
+        -- Verificar se o monstro alcançou o jogador
+        if (playerPos - newPosition).Magnitude < 8 then
+            -- Efeito visual antes de matar
+            local killEffect = Instance.new("Part")
+            killEffect.Size = Vector3.new(10, 10, 10)
+            killEffect.Position = playerPos
+            killEffect.Anchored = true
+            killEffect.CanCollide = false
+            killEffect.Material = Enum.Material.Neon
+            killEffect.BrickColor = BrickColor.new("Really red")
+            killEffect.Transparency = 0.7
+            killEffect.Parent = workspace
+            
+            local killLight = Instance.new("PointLight")
+            killLight.Brightness = 15
+            killLight.Range = 15
+            killLight.Color = Color3.fromRGB(255, 0, 0)
+            killLight.Parent = killEffect
+            
+            -- Matar o jogador
+            if player.Character then
+                player.Character:BreakJoints()
+                
+                -- Som de morte
+                local deathSound = Instance.new("Sound")
+                deathSound.SoundId = "rbxassetid://143942090"
+                deathSound.Volume = 1.5
+                deathSound.Parent = workspace
+                deathSound:Play()
+                
+                game:GetService("Debris"):AddItem(deathSound, 3)
+                game:GetService("Debris"):AddItem(killEffect, 2)
+                
+                -- Mensagem de morte
+                StarterGui:SetCore("ChatMakeSystemMessage", {
+                    Text = "O MONSTRO DAS BACKROOMS TE PEGOU! VOCÊ MORREU!",
+                    Color = Color3.fromRGB(255, 0, 0),
+                    Font = Enum.Font.GothamBold
+                })
+                
+                break
+            end
+        end
+        
+        wait(0.1)
+    end
+end
+
+-- ===== FUNÇÃO PARA DESATIVAR O MONSTRO =====
+local function DeactivateMonster()
+    monsterActive = false
+    if backroomsMonster then
+        backroomsMonster:Destroy()
+        backroomsMonster = nil
+    end
+end
+
+-- ===== FUNÇÃO PARA CRIAR BACKROOMS COM MAPA ESPECÍFICO =====
+local function CreateBackrooms()
+    local backroomsFolder = workspace:FindFirstChild("LightClient_Backrooms")
+    if backroomsFolder then
+        backroomsFolder:Destroy()
+    end
+    
+    backroomsFolder = Instance.new("Folder")
+    backroomsFolder.Name = "LightClient_Backrooms"
+    backroomsFolder.Parent = workspace
+    
+    -- Carregar mapa das Backrooms (ID: 10581711055)
+    local mapID = 10581711055
+    local distantPosition = Vector3.new(0, 10000, 0)
+    local teleportPosition = Vector3.new(59.06, 9996.70, 19.42)
+    
+    local success, mapa = pcall(function()
+        return game:GetObjects("rbxassetid://"..mapID)[1]
+    end)
+    
+    if success and mapa then
+        mapa.Parent = backroomsFolder
+        mapa.Name = "BackroomsMap"
+        
+        -- Configurar posição do mapa
+        if not mapa.PrimaryPart then
+            local part = mapa:FindFirstChildWhichIsA("BasePart")
+            if part then 
+                mapa.PrimaryPart = part 
+            end
+        end
+        
+        if mapa.PrimaryPart then
+            mapa:SetPrimaryPartCFrame(CFrame.new(distantPosition))
+        else
+            -- Se não tiver PrimaryPart, mover todas as partes
+            for _, part in ipairs(mapa:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Position = part.Position + distantPosition
+                end
+            end
+        end
+        
+        -- Aplicar iluminação das backrooms
+        local lighting = game:GetService("Lighting")
+        lighting.Brightness = 0.6
+        lighting.Ambient = Color3.fromRGB(255, 200, 100)
+        lighting.OutdoorAmbient = Color3.fromRGB(255, 200, 100)
+        lighting.FogColor = Color3.fromRGB(255, 200, 100)
+        lighting.FogEnd = 250
+        lighting.FogStart = 50
+        
+        -- Adicionar efeitos sonoros
+        local humSound = Instance.new("Sound")
+        humSound.SoundId = "rbxassetid://9114825996"
+        humSound.Volume = 0.6
+        humSound.Looped = true
+        humSound.Parent = backroomsFolder
+        humSound:Play()
+        
+        return backroomsFolder, teleportPosition
+    else
+        -- Fallback: criar backrooms manualmente se o mapa não carregar
+        local basePosition = Vector3.new(0, -500, 0)
+        local roomSize = 100
+        local wallHeight = 20
+        
+        local function createRoom(roomPosition, roomName)
+            local roomFolder = Instance.new("Folder")
+            roomFolder.Name = roomName
+            roomFolder.Parent = backroomsFolder
+            
+            local function createWall(position, size, name)
+                local wall = Instance.new("Part")
+                wall.Name = name
+                wall.Size = size
+                wall.Position = roomPosition + position
+                wall.Anchored = true
+                wall.CanCollide = true
+                wall.Material = Enum.Material.Plastic
+                wall.BrickColor = BrickColor.new("Br. yellowish orange")
+                wall.Parent = roomFolder
+                return wall
+            end
+            
+            -- Piso
+            local floor = createWall(Vector3.new(0, 0, 0), Vector3.new(roomSize, 1, roomSize), "Floor")
+            
+            -- Teto
+            local ceiling = createWall(Vector3.new(0, wallHeight, 0), Vector3.new(roomSize, 1, roomSize), "Ceiling")
+            ceiling.BrickColor = BrickColor.new("Dark orange")
+            
+            -- Paredes
+            createWall(Vector3.new(-roomSize/2, wallHeight/2, 0), Vector3.new(2, wallHeight, roomSize), "WestWall")
+            createWall(Vector3.new(roomSize/2, wallHeight/2, 0), Vector3.new(2, wallHeight, roomSize), "EastWall")
+            createWall(Vector3.new(0, wallHeight/2, -roomSize/2), Vector3.new(roomSize, wallHeight, 2), "NorthWall")
+            createWall(Vector3.new(0, wallHeight/2, roomSize/2), Vector3.new(roomSize, wallHeight, 2), "SouthWall")
+            
+            return roomFolder
+        end
+        
+        -- Criar sala central
+        local centralRoom = createRoom(basePosition, "CentralRoom")
+        teleportPosition = basePosition + Vector3.new(0, 5, 0)
+        
+        return backroomsFolder, teleportPosition
+    end
+end
+
+-- ===== FUNÇÃO PARA TEletransportar PARA BACKROOMS =====
+local function TeleportToBackrooms(player)
+    if not player or not player.Character then
+        return false
+    end
+    
+    local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then
+        return false
+    end
+    
+    -- Criar backrooms
+    local backroomsFolder, spawnPosition = CreateBackrooms()
+    
+    -- Efeito visual de transição
+    local transitionEffect = Instance.new("Part")
+    transitionEffect.Name = "BackroomsTransition"
+    transitionEffect.Size = Vector3.new(8, 8, 8)
+    transitionEffect.Position = humanoidRootPart.Position
+    transitionEffect.Anchored = true
+    transitionEffect.CanCollide = false
+    transitionEffect.Material = Enum.Material.Neon
+    transitionEffect.BrickColor = BrickColor.new("Bright yellow")
+    transitionEffect.Transparency = 0.3
+    transitionEffect.Parent = workspace
+    
+    local transitionLight = Instance.new("PointLight")
+    transitionLight.Brightness = 8
+    transitionLight.Range = 12
+    transitionLight.Color = Color3.fromRGB(255, 255, 150)
+    transitionLight.Parent = transitionEffect
+    
+    -- Animação de teletransporte
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(transitionEffect, tweenInfo, {Size = Vector3.new(15, 15, 15), Transparency = 0.8})
+    tween:Play()
+    
+    -- Teletransportar jogador para as backrooms
+    humanoidRootPart.CFrame = CFrame.new(spawnPosition)
+    
+    -- Remover efeito após 1 segundo
+    game:GetService("Debris"):AddItem(transitionEffect, 1)
+    
+    -- Ativar o monstro após 3 segundos
+    task.wait(3)
+    ActivateMonster(player)
+    
